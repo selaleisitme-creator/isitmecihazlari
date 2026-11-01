@@ -642,7 +642,7 @@ export default function Anasayfa() {
           <ChevronRight className="w-6 h-6" />
         </a>
         <a
-          href="/online*test"
+          href="/online-test"
           className="bg-white hover:bg-blue-200 text-blue-900 font-bold py-4 px-10 rounded-lg transition transform hover:scale-105 inline-flex items-center gap-2 text-lg shadow-md"
         >
           Ücretsiz Testi Başla
