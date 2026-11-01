@@ -26,15 +26,42 @@ app.use(cors({
 app.use(express.json());
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB bağlantısı başarılı"))
-  .catch(err => console.error("❌ MongoDB bağlantı hatası:", err));
+// Vercel reuses a warm instance across requests. Mongoose never retries a failed first
+// connect, so one network hiccup at startup used to break every later request.
+// Each request now checks the connection and reconnects when it is down.
+let connecting = null;
+mongoose.connection.on("disconnected", () => { connecting = null; });
+
+function connectToDatabase() {
+  if (mongoose.connection.readyState === 1) return Promise.resolve();
+  if (!connecting) {
+    connecting = mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 8000 })
+      .then(() => console.log("MongoDB bağlantısı başarılı"))
+      .catch(err => {
+        connecting = null;
+        console.error("❌ MongoDB bağlantı hatası:", err);
+        throw err;
+      });
+  }
+  return connecting;
+}
+
+connectToDatabase().catch(() => {});
+
+async function requireDatabase(req, res, next) {
+  try {
+    await connectToDatabase();
+    next();
+  } catch {
+    res.status(503).json({ error: "Veritabanına şu an ulaşılamıyor. Lütfen biraz sonra tekrar deneyin." });
+  }
+}
 
 app.get("/api/test", (req, res) => {
   res.json({ message: "Backend connection successful 🎉" });
 });
 
-app.use("/api/appointments", appointmentRoutes);
+app.use("/api/appointments", requireDatabase, appointmentRoutes);
 
 app.get("/", (req, res) => {
   res.send("İşitme Cihazları API çalışıyor...");
