@@ -415,19 +415,22 @@ export default function RandevuSistemi() {
 
               <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mb-8">
                 {timeSlots.map((time) => {
+                  const booked = bookedTimes.includes(time);
                   const unavailable = slotsLoading || isSlotUnavailable(time);
                   return (
                     <button
                       key={time}
                       onClick={() => { setSelectedTime(time); setError(''); }}
                       disabled={unavailable}
-                      title={bookedTimes.includes(time) ? 'Bu saat dolu' : undefined}
+                      title={booked ? 'Bu saat dolu' : undefined}
                       className={`py-3 px-4 rounded-lg font-semibold transition ${
                         selectedTime === time
                           ? 'bg-linear-to-r from-blue-600 to-purple-600 text-white' // Düzeltme: bg-gradient-to-r -> bg-linear-to-r
-                          : unavailable
-                            ? 'bg-gray-100 text-gray-400 line-through border border-gray-200 cursor-not-allowed'
-                            : 'bg-gray-100 text-gray-900 hover:bg-blue-50 border border-gray-200'
+                          : booked
+                            ? 'bg-red-100 text-red-700 border border-red-300 cursor-not-allowed'
+                            : unavailable
+                              ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                              : 'bg-gray-100 text-gray-900 hover:bg-blue-50 border border-gray-200'
                       }`}
                     >
                       {time}
