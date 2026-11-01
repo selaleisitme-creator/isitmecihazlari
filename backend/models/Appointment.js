@@ -11,5 +11,9 @@ const appointmentSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// Last line of defence against double booking: two simultaneous requests can both pass
+// the availability check in the route, but the database rejects the second insert.
+appointmentSchema.index({ date: 1, time: 1 }, { unique: true });
+
 export default mongoose.model("dates", appointmentSchema);
 // export default mongoose.model("Appointment", appointmentSchema);

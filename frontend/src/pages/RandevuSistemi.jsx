@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Check, Calendar, Clock, User, X, Menu, Phone, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import API_BASE_URL from '../config';
@@ -20,6 +20,8 @@ export default function RandevuSistemi() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [bookedTimes, setBookedTimes] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
 
   const timeSlots = [
     '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
@@ -75,6 +77,37 @@ export default function RandevuSistemi() {
     }
   };
 
+  const selectedDayKey = selectedDate
+    ? `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(selectedDate).padStart(2, '0')}`
+    : null;
+
+  // Taken times are fetched whenever the time step is shown, so a slot booked
+  // by someone else in the meantime appears as unavailable.
+  useEffect(() => {
+    if (step !== 2 || !selectedDayKey) return;
+    let cancelled = false;
+    setSlotsLoading(true);
+    fetch(`${API_BASE_URL}/api/appointments/booked?date=${selectedDayKey}`)
+      .then(res => (res.ok ? res.json() : { times: [] }))
+      .then(data => {
+        if (cancelled) return;
+        const times = data.times || [];
+        setBookedTimes(times);
+        setSelectedTime(current => (times.includes(current) ? null : current));
+      })
+      .catch(() => { if (!cancelled) setBookedTimes([]); })
+      .finally(() => { if (!cancelled) setSlotsLoading(false); });
+    return () => { cancelled = true; };
+  }, [step, selectedDayKey]);
+
+  const isPastSlot = (time) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const slot = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), selectedDate, hours, minutes);
+    return slot <= new Date();
+  };
+
+  const isSlotUnavailable = (time) => bookedTimes.includes(time) || isPastSlot(time);
+
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -110,6 +143,12 @@ export default function RandevuSistemi() {
 
       if (response.ok) {
         setSubmitted(true);
+      } else if (response.status === 409) {
+        // Someone took the slot first: send the user back to pick another one.
+        const data = await response.json().catch(() => ({}));
+        setSelectedTime(null);
+        setStep(2);
+        setError(data.error || 'Bu saat az önce doldu. Lütfen başka bir saat seçin.');
       } else {
         setError('Randevu oluşturulurken hata oluştu. Lütfen tekrar deneyiniz.');
       }
@@ -368,21 +407,37 @@ export default function RandevuSistemi() {
                 </p>
               </div>
 
+              {error && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                  {error}
+                </div>
+              )}
+
               <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mb-8">
-                {timeSlots.map((time) => (
-                  <button
-                    key={time}
-                    onClick={() => setSelectedTime(time)}
-                    className={`py-3 px-4 rounded-lg font-semibold transition ${
-                      selectedTime === time
-                        ? 'bg-linear-to-r from-blue-600 to-purple-600 text-white' // Düzeltme: bg-gradient-to-r -> bg-linear-to-r
-                        : 'bg-gray-100 text-gray-900 hover:bg-blue-50 border border-gray-200'
-                    }`}
-                  >
-                    {time}
-                  </button>
-                ))}
+                {timeSlots.map((time) => {
+                  const unavailable = slotsLoading || isSlotUnavailable(time);
+                  return (
+                    <button
+                      key={time}
+                      onClick={() => { setSelectedTime(time); setError(''); }}
+                      disabled={unavailable}
+                      title={bookedTimes.includes(time) ? 'Bu saat dolu' : undefined}
+                      className={`py-3 px-4 rounded-lg font-semibold transition ${
+                        selectedTime === time
+                          ? 'bg-linear-to-r from-blue-600 to-purple-600 text-white' // Düzeltme: bg-gradient-to-r -> bg-linear-to-r
+                          : unavailable
+                            ? 'bg-gray-100 text-gray-400 line-through border border-gray-200 cursor-not-allowed'
+                            : 'bg-gray-100 text-gray-900 hover:bg-blue-50 border border-gray-200'
+                      }`}
+                    >
+                      {time}
+                    </button>
+                  );
+                })}
               </div>
+              {!slotsLoading && timeSlots.every(isSlotUnavailable) && (
+                <p className="mb-6 text-gray-600">Bu gün için boş saat kalmadı. Lütfen başka bir gün seçin.</p>
+              )}
 
               <div className="flex gap-4">
                 <button
