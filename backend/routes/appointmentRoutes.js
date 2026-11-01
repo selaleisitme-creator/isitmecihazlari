@@ -76,6 +76,18 @@ router.post("/", async (req, res) => {
   }
 });
 
+// Form fields come from anyone on the internet. Without escaping, a visitor could
+// type HTML (e.g. a fake "click here" link) and it would render inside the clinic's
+// own notification email.
+export function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // function to send email
 async function sendEmailToCompany(appointment) {
   // Replace with your company email credentials
@@ -93,12 +105,12 @@ async function sendEmailToCompany(appointment) {
     subject: "Yeni Randevu Talebi",
     html: `
       <h3>Yeni Randevu Talebi</h3>
-      <p><strong>Ad Soyad:</strong> ${appointment.name}</p>
-      <p><strong>Telefon:</strong> ${appointment.phone}</p>
-      <p><strong>E-posta:</strong> ${appointment.email}</p>
+      <p><strong>Ad Soyad:</strong> ${escapeHtml(appointment.name)}</p>
+      <p><strong>Telefon:</strong> ${escapeHtml(appointment.phone)}</p>
+      <p><strong>E-posta:</strong> ${escapeHtml(appointment.email)}</p>
       <p><strong>Tarih:</strong> ${new Date(appointment.date).toLocaleDateString("tr-TR", { timeZone: "Europe/Istanbul" })}</p>
-      <p><strong>Saat:</strong> ${appointment.time}</p>
-      ${appointment.issue ? `<p><strong>İşitme Problemi:</strong> ${appointment.issue}</p>` : ""}
+      <p><strong>Saat:</strong> ${escapeHtml(appointment.time)}</p>
+      ${appointment.issue ? `<p><strong>İşitme Problemi:</strong> ${escapeHtml(appointment.issue)}</p>` : ""}
     `,
   };
 
