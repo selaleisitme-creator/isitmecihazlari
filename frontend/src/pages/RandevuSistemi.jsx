@@ -33,8 +33,10 @@ export default function RandevuSistemi() {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   };
 
+  // getDay() counts from Sunday (0), but the calendar header starts on Monday,
+  // so shift by one: Monday -> 0 ... Sunday -> 6.
   const getFirstDayOfMonth = (date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+    return (new Date(date.getFullYear(), date.getMonth(), 1).getDay() + 6) % 7;
   };
 
   const generateCalendar = () => {
