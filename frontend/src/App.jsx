@@ -1,15 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 
-import Anasayfa from "./pages/Anasayfa";
-import RandevuSistemi from "./pages/RandevuSistemi";
-import UrunKatalogu from "./pages/UrunKatalogu";
-import TerapiProgrami from "./pages/TerapiProgrami";
-import OdemePlanlari from "./pages/OdemePlanlari";
-import AudioServis from "./pages/AudioServisiUygulamasi";
 import KvkkPopup from "./components/KvkkPopup.jsx";
+import Anasayfa from "./pages/Anasayfa";
+import AudioServis from "./pages/AudioServisiUygulamasi";
 import Hakkimizda from "./pages/Hakkimizda.jsx";
+import OdemePlanlari from "./pages/OdemePlanlari";
 import OnlineTest from "./pages/OnlineTest.jsx";
+import RandevuSistemi from "./pages/RandevuSistemi";
+import TerapiProgrami from "./pages/TerapiProgrami";
+import UrunKatalogu from "./pages/UrunKatalogu";
 
 function App() {
   return (
@@ -19,7 +18,7 @@ function App() {
 
       {/* Main Router */}
       <BrowserRouter>
-        <Routes>
+        <Routes basename="/">
           <Route path="/" element={<Anasayfa />} />
           <Route path="/randevu" element={<RandevuSistemi />} />
           <Route path="/urun-katalogu" element={<UrunKatalogu />} />
