@@ -133,7 +133,7 @@ export default function RandevuSistemi() {
             <strong>{formData.name}</strong>, randevunuz için teşekkürler.
           </p>
           <p className="text-gray-600 mb-6">
-            Talebiniz bize ulaştı. Randevunuzu onaylamak için {formData.phone} numarasından sizi en kısa sürede arayacağız.
+            Talebiniz bize ulaştı. Yakında sizinle iletişime geçilecektir.
           </p>
           <div className="bg-blue-50 p-4 rounded-xl mb-6">
             <p className="text-sm text-gray-700">
