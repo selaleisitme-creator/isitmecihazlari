@@ -42,6 +42,12 @@ router.get("/booked", async (req, res) => {
 
 // POST - create appointment
 router.post("/", async (req, res) => {
+  // Honeypot: the form hides a "website" field from people. Bots fill every field, so a
+  // value here means a bot. Reply with the normal success so it does not adapt.
+  if (String(req.body.website || "").trim() !== "") {
+    return res.status(201).json({ message: "Randevu başarıyla kaydedildi" });
+  }
+
   const requested = new Date(req.body.date);
   const time = String(req.body.time || "");
   if (Number.isNaN(requested.getTime()) || !TIME_PATTERN.test(time)) {
