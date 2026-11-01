@@ -40,7 +40,7 @@ async function sendEmailToCompany(appointment) {
       <p><strong>Ad Soyad:</strong> ${appointment.name}</p>
       <p><strong>Telefon:</strong> ${appointment.phone}</p>
       <p><strong>E-posta:</strong> ${appointment.email}</p>
-      <p><strong>Tarih:</strong> ${new Date(appointment.date).toLocaleDateString("tr-TR")}</p>
+      <p><strong>Tarih:</strong> ${new Date(appointment.date).toLocaleDateString("tr-TR", { timeZone: "Europe/Istanbul" })}</p>
       <p><strong>Saat:</strong> ${appointment.time}</p>
       ${appointment.issue ? `<p><strong>İşitme Problemi:</strong> ${appointment.issue}</p>` : ""}
     `,
