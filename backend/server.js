@@ -9,9 +9,15 @@ dotenv.config();
 const app = express();
 
 // CORS()
-const URL = process.env.url || "http://localhost:5173";
+// The site is served from several addresses (custom domain, www, Vercel URL), so `url`
+// holds a comma-separated list. Trailing slashes are stripped because browsers send
+// the Origin header without one and an exact match would otherwise fail.
+const allowedOrigins = (process.env.url || "http://localhost:5173")
+  .split(",")
+  .map(origin => origin.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
 app.use(cors({
-  origin: URL,
+  origin: allowedOrigins,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
   allowedHeaders: ["Content-Type"]
