@@ -15,7 +15,8 @@ export default function RandevuSistemi() {
     phone: '',
     email: '',
     age: '',
-    issue: ''
+    issue: '',
+    website: ''
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -131,7 +132,8 @@ export default function RandevuSistemi() {
       phone: formData.phone,
       email: formData.email,
       age: formData.age || '',
-      issue: formData.issue || ''
+      issue: formData.issue || '',
+      website: formData.website
     };
 
     try {
@@ -472,6 +474,21 @@ export default function RandevuSistemi() {
               </h2>
 
               <div className="space-y-6 mb-8">
+                {/* Honeypot for bots: hidden from sight, screen readers and keyboard navigation,
+                    so only automated scripts fill it in. The backend discards such requests. */}
+                <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', width: '1px', height: '1px', overflow: 'hidden' }}>
+                  <label>
+                    Web siteniz
+                    <input
+                      type="text"
+                      name="website"
+                      value={formData.website}
+                      onChange={handleFormChange}
+                      tabIndex={-1}
+                      autoComplete="off"
+                    />
+                  </label>
+                </div>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-gray-700 font-semibold mb-2">Ad Soyad *</label>
