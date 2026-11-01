@@ -1,0 +1,15 @@
+# robots.txt for Şelale İşitme Merkezi
+
+# Allow all search engines
+User-agent: *
+Allow: /
+
+# Disallow API endpoints (if any)
+Disallow: /api/
+
+# Crawl delay (optional, helps prevent server overload)
+Crawl-delay: 1
+
+# Sitemap location
+# IMPORTANT: Update this URL when you buy your domain!
+Sitemap: http://localhost:5173/sitemap.xml
