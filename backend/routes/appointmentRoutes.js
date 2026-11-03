@@ -1,24 +1,20 @@
 import express from "express";
-import Appointment from "../models/Appointment.js";
 import nodemailer from "nodemailer";
+import { getSupabase } from "../lib/supabase.js";
 
 const router = express.Router();
 
+const TABLE = "appointment_requests";
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const SLOT_TAKEN_MESSAGE = "Bu saat az önce doldu. Lütfen başka bir saat seçin.";
+const UNIQUE_VIOLATION = "23505"; // PostgreSQL error code for a unique index conflict
 
 // Calendar day in Turkey ("2026-11-24") regardless of the server's own time zone.
 function turkeyDayKey(date) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit",
   }).format(date);
-}
-
-// Turkey has been on fixed UTC+3 since 2016, so local midnight is a fixed offset.
-function turkeyMidnight(dayKey) {
-  return new Date(`${dayKey}T00:00:00+03:00`);
 }
 
 // GET - taken times for one day; returns only times, never personal data
@@ -28,12 +24,13 @@ router.get("/booked", async (req, res) => {
     return res.status(400).json({ error: "Tarih YYYY-AA-GG biçiminde olmalı." });
   }
   try {
-    const start = turkeyMidnight(day);
-    const taken = await Appointment.find(
-      { date: { $gte: start, $lt: new Date(start.getTime() + ONE_DAY_MS) } },
-      { time: 1, _id: 0 }
-    ).lean();
-    res.json({ times: taken.map(a => a.time).sort() });
+    const { data, error } = await getSupabase()
+      .from(TABLE)
+      .select("appointment_time")
+      .eq("appointment_date", day)
+      .neq("status", "rejected"); // a rejected request frees its slot
+    if (error) throw error;
+    res.json({ times: data.map(row => row.appointment_time).sort() });
   } catch (error) {
     console.error("Dolu saatler okunamadı:", error);
     res.status(500).json({ error: "Dolu saatler okunamadı" });
@@ -54,29 +51,45 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "Geçerli bir tarih ve saat seçin." });
   }
 
-  // Store every booking as Turkey midnight of its day so equal days compare equal.
+  const name = String(req.body.name || "").trim();
+  const phone = String(req.body.phone || "").trim();
+  const email = String(req.body.email || "").trim();
+  if (!name || !phone || !email) {
+    return res.status(400).json({ error: "Ad soyad, telefon ve e-posta zorunludur." });
+  }
+
+  // The form sends local midnight; store only the Turkey calendar day (a DATE column),
+  // so the day can never shift with the server's time zone.
   const day = turkeyDayKey(requested);
-  const date = turkeyMidnight(day);
   if (new Date(`${day}T${time}:00+03:00`) <= new Date()) {
     return res.status(400).json({ error: "Geçmiş bir saate randevu alınamaz." });
   }
 
+  const age = Number.parseInt(req.body.age, 10);
+  const appointment = {
+    full_name: name,
+    phone,
+    email,
+    age: Number.isNaN(age) ? null : age,
+    issue: String(req.body.issue || "").trim() || null,
+    appointment_date: day,
+    appointment_time: time,
+  };
+
   try {
-    if (await Appointment.exists({ date, time })) {
+    // The unique index on (appointment_date, appointment_time) rejects a taken slot,
+    // even when two requests arrive at the same moment.
+    const { error } = await getSupabase().from(TABLE).insert(appointment);
+    if (error?.code === UNIQUE_VIOLATION) {
       return res.status(409).json({ error: SLOT_TAKEN_MESSAGE });
     }
-
-    const appointment = new Appointment({ ...req.body, date, time });
-    await appointment.save();
+    if (error) throw error;
 
     // Send email to company
     await sendEmailToCompany(appointment);
 
     res.status(201).json({ message: "Randevu başarıyla kaydedildi" });
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(409).json({ error: SLOT_TAKEN_MESSAGE });
-    }
     console.error("Randevu oluşturma hatası:", error);
     res.status(500).json({ error: "Randevu kaydedilemedi" });
   }
@@ -111,11 +124,11 @@ async function sendEmailToCompany(appointment) {
     subject: "Yeni Randevu Talebi",
     html: `
       <h3>Yeni Randevu Talebi</h3>
-      <p><strong>Ad Soyad:</strong> ${escapeHtml(appointment.name)}</p>
+      <p><strong>Ad Soyad:</strong> ${escapeHtml(appointment.full_name)}</p>
       <p><strong>Telefon:</strong> ${escapeHtml(appointment.phone)}</p>
       <p><strong>E-posta:</strong> ${escapeHtml(appointment.email)}</p>
-      <p><strong>Tarih:</strong> ${new Date(appointment.date).toLocaleDateString("tr-TR", { timeZone: "Europe/Istanbul" })}</p>
-      <p><strong>Saat:</strong> ${escapeHtml(appointment.time)}</p>
+      <p><strong>Tarih:</strong> ${appointment.appointment_date.split("-").reverse().join(".")}</p>
+      <p><strong>Saat:</strong> ${escapeHtml(appointment.appointment_time)}</p>
       ${appointment.issue ? `<p><strong>İşitme Problemi:</strong> ${escapeHtml(appointment.issue)}</p>` : ""}
     `,
   };
