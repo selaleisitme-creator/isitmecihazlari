@@ -2,7 +2,6 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import rateLimit from "express-rate-limit";
-import mongoose from "mongoose";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
 
 dotenv.config();
@@ -30,38 +29,6 @@ app.use(cors({
 
 app.use(express.json());
 
-// MongoDB connection
-// Vercel reuses a warm instance across requests. Mongoose never retries a failed first
-// connect, so one network hiccup at startup used to break every later request.
-// Each request now checks the connection and reconnects when it is down.
-let connecting = null;
-mongoose.connection.on("disconnected", () => { connecting = null; });
-
-function connectToDatabase() {
-  if (mongoose.connection.readyState === 1) return Promise.resolve();
-  if (!connecting) {
-    connecting = mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 8000 })
-      .then(() => console.log("MongoDB bağlantısı başarılı"))
-      .catch(err => {
-        connecting = null;
-        console.error("❌ MongoDB bağlantı hatası:", err);
-        throw err;
-      });
-  }
-  return connecting;
-}
-
-connectToDatabase().catch(() => {});
-
-async function requireDatabase(req, res, next) {
-  try {
-    await connectToDatabase();
-    next();
-  } catch {
-    res.status(503).json({ error: "Veritabanına şu an ulaşılamıyor. Lütfen biraz sonra tekrar deneyin." });
-  }
-}
-
 app.get("/api/test", (req, res) => {
   res.json({ message: "Backend connection successful 🎉" });
 });
@@ -84,10 +51,10 @@ const bookedSlotsLimiter = rateLimit({
   message: { error: "Çok fazla istek yapıldı. Lütfen biraz sonra tekrar deneyin." },
 });
 
-// Limiters run before the database check so blocked requests never touch MongoDB.
+// Limiters run before the routes so blocked requests never reach the database.
 app.post("/api/appointments", bookingLimiter);
 app.get("/api/appointments/booked", bookedSlotsLimiter);
-app.use("/api/appointments", requireDatabase, appointmentRoutes);
+app.use("/api/appointments", appointmentRoutes);
 
 app.get("/", (req, res) => {
   res.send("İşitme Cihazları API çalışıyor...");
